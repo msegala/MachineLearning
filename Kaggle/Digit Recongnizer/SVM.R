@@ -3,6 +3,21 @@ library(caret)
 library(doSNOW)
 
 
+#################################################################################
+#
+# Functions
+#
+# Function to randomly split the data
+splitdf <- function(dataframe, nSplits = 2, seed=NULL) {
+  if (!is.null(seed)) set.seed(seed)
+  index <- 1:nrow(dataframe)
+  trainindex <- sample(index, trunc(length(index)/nSplits))
+  trainset <- dataframe[-trainindex, ]
+  validationset <- dataframe[trainindex, ]
+  list(trainset=trainset,validationset=validationset)
+}
+
+
 
 
 #################################################################################
@@ -15,12 +30,12 @@ library(doSNOW)
 # The training data is split 66% / 33% for training/CV
 #
 
-train <- read.csv("C:/Users/segm/Desktop/Kaggle/Digit Recongnizer/train.csv", header=TRUE)
-test <-  read.csv("C:/Users/segm/Desktop/Kaggle/Digit Recongnizer/test.csv", header=TRUE)
+train <- read.csv("C:/Users/segm/Desktop/MachineLearning/Kaggle/Digit Recongnizer/train.csv", header=TRUE)
+test <-  read.csv("C:/Users/segm/Desktop/MachineLearning/Kaggle/Digit Recongnizer/test.csv", header=TRUE)
 
 ## only look at first 1000 observations
-smallTest <- test[1:10000,]
-smallTrain <- train[1:10000,]  
+smallTest <- test[1:1000,]
+smallTrain <- train[1:1000,]  
 
 # create the validation set by splitting the training set up into 66% / 33%
 splits <- splitdf(smallTrain, nSplits=3, seed=808)
@@ -44,23 +59,6 @@ xVal      <- xVal[,-zero_var_train]
 xTrainFull <- xFullTrain[,-zero_var_train]
 TestFull   <- test[,-zero_var_train]
 
-
-
-
-
-#################################################################################
-#
-# Functions
-#
-# Function to randomly split the data
-splitdf <- function(dataframe, nSplits = 2, seed=NULL) {
-  if (!is.null(seed)) set.seed(seed)
-  index <- 1:nrow(dataframe)
-  trainindex <- sample(index, trunc(length(index)/nSplits))
-  trainset <- dataframe[-trainindex, ]
-  validationset <- dataframe[trainindex, ]
-  list(trainset=trainset,validationset=validationset)
-}
 
 
 
@@ -116,6 +114,13 @@ ctrl_Radial <- trainControl(method = "cv",
 
 
 
+
+
+
+
+
+
+
 # Find a good Sigma (turned out to be sigma = 2.935701ee-07)
 model <- train(xVal, yValLabels, 
                method='svmRadial',
@@ -134,14 +139,17 @@ model <- train(xVal, yValLabels,
 
 
 
+###################
+###
+###   FIRST FULL TRAINING
+###
+
+tic=proc.time()[3]
 # Full training example
-model <- train(xTrain, yFullTrainingLabels, 
+model <- train(xTrainFull, yFullTrainingLabels, 
                method='svmRadial',
                tuneGrid = expand.grid(.sigma=c(2.94e-07),.C=c(2))
               )
-
-
-
 
 toc=proc.time()[3] - tic
 toc
@@ -149,11 +157,29 @@ toc
 print(model)
 plot(model)
 
-predY <- predict(model, xVal)
-predY
-table(predY, yValLabels)
 
-confusionMatrix(predY,yValLabels)
+predY <- predict(model, TestFull)
+predY
+
+predictions <- levels(yTrainingLabels)[predY]
+predictions
+
+write(predictions, file="C:/Users/segm/Desktop/MachineLearning/Kaggle/Digit Recongnizer/my_svm_benchmark.csv", 
+      ncolumns=1) 
+
+
+#Accuracy  Kappa  Accuracy SD  Kappa SD
+#0.974     0.972  0.00108      0.00121 
+
+#Tuning parameter 'C' was held constant at a value of 2
+#Tuning parameter 'sigma' was held constant at a value
+#of 2.94e-07
+
+###
+###
+###
+###################
+
 
 
 stopCluster(c1)
@@ -161,67 +187,37 @@ stopCluster(c1)
 
 
 
-tic=proc.time()[3]
-rdaGrid = data.frame(.C=1, .degree=1, .scale=2.26e-07)
-
-
-ctrl <- trainControl(method = "repeatedcv",
-                     repeats = 2,
-                     classProbs = TRUE
-                    )
-
-
-
-
-model <- train(xVal, yValLabels, 
-               method='svmPoly',
-               #tuneGrid = rdaGrid,
-               trControl = ctrl,
-               tuneLength = 3,
-               metric = "ROC"
-              )
-
-
-model <- train(xVal, yValLabels, 
-               method='svmPoly',
-               #tuneGrid = rdaGrid,
-               trControl = ctrl,
-               tuneLength = 3,
-               metric = "ROC"
-)
 
 
 
 
 
-model <- train(xTrain, yTrainingLabels, 
-               method='svmPoly',
-               tuneGrid = rdaGrid
-              )
-
-
-model <- train(xTrain, yTrainingLabels, 
-               method='svmPoly',
-               tuneLength = 1
-              )
-
-
-toc=proc.time()[3] - tic
-
-
-print(model, printCall = FALSE)
 
 
 
-print(model)
-plot(model)
 
-predY <- predict(model, xVal)
+
+
+
+
+
+
+
+
+
 table(predY, yValLabels)
 
 confusionMatrix(predY,yValLabels)
 
 
+
+
+
+predY <- predict(model, xVal)
+predY
+table(predY, yValLabels)
+
+confusionMatrix(predY,yValLabels)
 
 
 
