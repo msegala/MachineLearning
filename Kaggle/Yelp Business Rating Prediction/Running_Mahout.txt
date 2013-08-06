@@ -1,0 +1,19 @@
+Desribed below is the procedure used to run Matrix Factorization in apache mahout. 
+
+
+# create a 90% percent training set and a 10% probe set
+mahout splitDataset --input yelp_data/review_forMahout.csv --output yelp_dataset \
+    --trainingPercentage 0.9 --probePercentage 0.1 --tempDir yelp_dataset/tmp
+
+# run distributed ALS-WR to factorize the rating matrix defined by the training set
+mahout parallelALS --input yelp_dataset/trainingSet/ --output yelp_als/out \
+    --tempDir yelp_als/tmp --numFeatures 30 --numIterations 20 --lambda 0.5
+
+# compute predictions against the probe set, measure the error
+mahout evaluateFactorization --input yelp_dataset/probeSet/ --output yelp_als/rmse/ \
+    --userFeatures yelp_als/out/U/ --itemFeatures yelp_als/out/M/ --tempDir yelp_als/tmp
+
+# compute recommendations
+mahout recommendfactorized --input yelp_als/out/userRatings/ --output yelp_recommendations/ \
+    --userFeatures yelp_als/out/U/ --itemFeatures yelp_als/out/M/ \
+    --numRecommendations 6 --maxRating 5 --numThreads 2
